@@ -1,0 +1,28 @@
+# Todo data directory
+.todos/
+
+# Go binary
+kaj-tasklist
+kaj
+
+# Go build artifacts
+*.o
+*.a
+*.so
+
+# Go test binary, built with `go test -c`
+*.test
+
+# Go coverage reports
+*.out
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
