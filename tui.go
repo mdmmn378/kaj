@@ -280,7 +280,7 @@ func (m model) View() string {
 
 	var s strings.Builder
 
-	s.WriteString(titleStyle.Render("KAJ TODO LIST"))
+	s.WriteString(titleStyle.Render("KAJ LIST"))
 	s.WriteString("\n\n")
 
 	switch m.mode {

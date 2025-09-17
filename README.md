@@ -2,6 +2,8 @@
 
 A simple, elegant CLI todo list manager with a beautiful TUI (Terminal User Interface) built with [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
+> **Disclaimer**: This tool was created for my personal use with vibe coding. It's a quick and simple solution that works for my workflow, but may not cover all edge cases or use patterns. Feel free to fork and modify as needed!
+
 ## Features
 
 - **CLI Commands**: Add, list, edit, toggle, and delete todos from the command line
@@ -12,7 +14,17 @@ A simple, elegant CLI todo list manager with a beautiful TUI (Terminal User Inte
 
 ## Installation
 
+### From Source (Recommended)
+
 ```bash
+go install github.com/mdmmn378/kaj@latest
+```
+
+### Build Locally
+
+```bash
+git clone https://github.com/mdmmn378/kaj.git
+cd kaj
 go build -o kaj
 ```
 

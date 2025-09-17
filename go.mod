@@ -1,4 +1,4 @@
-module kaj-tasklist
+module kaj
 
 go 1.24.2
 
