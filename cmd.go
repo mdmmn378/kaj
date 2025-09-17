@@ -10,9 +10,10 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "kaj",
-	Short: "A simple todo list manager",
-	Long:  "A simple CLI todo list manager with TUI interface built with Bubble Tea",
+	Use:     "kaj",
+	Short:   "A simple todo list manager",
+	Long:    "A simple CLI todo list manager with TUI interface built with Bubble Tea",
+	Version: Version,
 	Run: func(cmd *cobra.Command, args []string) {
 		runTUI()
 	},
@@ -268,6 +269,14 @@ var statusCmd = &cobra.Command{
 	},
 }
 
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Show version information",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println(getVersionInfo())
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(listCmd)
@@ -276,6 +285,7 @@ func init() {
 	rootCmd.AddCommand(deleteCmd)
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(statusCmd)
+	rootCmd.AddCommand(versionCmd)
 }
 
 func Execute() error {

@@ -14,7 +14,23 @@ A simple, elegant CLI todo list manager with a beautiful TUI (Terminal User Inte
 
 ## Installation
 
-### From Source (Recommended)
+### From Pre-built Binaries (Recommended)
+
+Download the latest release for your platform from [GitHub Releases](https://github.com/mdmmn378/kaj/releases):
+
+```bash
+# Linux (AMD64)
+curl -L -o kaj https://github.com/mdmmn378/kaj/releases/latest/download/kaj-linux-amd64
+chmod +x kaj
+sudo mv kaj /usr/local/bin/
+
+# macOS (Apple Silicon)
+curl -L -o kaj https://github.com/mdmmn378/kaj/releases/latest/download/kaj-darwin-arm64
+chmod +x kaj
+sudo mv kaj /usr/local/bin/
+```
+
+### From Source
 
 ```bash
 go install github.com/mdmmn378/kaj@latest
@@ -53,6 +69,9 @@ kaj init
 
 # Check which database is being used
 kaj status
+
+# Show version information
+kaj version
 ```
 
 ### Interactive TUI

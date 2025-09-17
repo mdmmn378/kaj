@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.21"
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Build binaries
+        run: |
+          # Set version info
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          COMMIT=$(git rev-parse --short HEAD)
+          DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          # Build flags
+          LDFLAGS="-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.Date=${DATE}"
+
+          # Build for Linux AMD64
+          GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o kaj-linux-amd64
+
+          # Build for macOS ARM64 (Apple Silicon)
+          GOOS=darwin GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o kaj-darwin-arm64
+
+          # Create checksums
+          sha256sum kaj-linux-amd64 > kaj-linux-amd64.sha256
+          sha256sum kaj-darwin-arm64 > kaj-darwin-arm64.sha256
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            kaj-linux-amd64
+            kaj-linux-amd64.sha256
+            kaj-darwin-arm64
+            kaj-darwin-arm64.sha256
+          body: |
+            ## Release ${{ steps.version.outputs.VERSION }}
+
+            ### Downloads
+
+            - **Linux (AMD64)**: `kaj-linux-amd64`
+            - **macOS (ARM64/Apple Silicon)**: `kaj-darwin-arm64`
+
+            ### Installation
+
+            Download the appropriate binary for your platform, make it executable, and move it to your PATH:
+
+            ```bash
+            # Linux
+            chmod +x kaj-linux-amd64
+            sudo mv kaj-linux-amd64 /usr/local/bin/kaj
+
+            # macOS (Apple Silicon)
+            chmod +x kaj-darwin-arm64
+            sudo mv kaj-darwin-arm64 /usr/local/bin/kaj
+            ```
+
+            Or install directly with Go:
+            ```bash
+            go install github.com/mdmmn378/kaj@${{ steps.version.outputs.VERSION }}
+            ```
+
+            ### Changes
+
+            See the commit history for detailed changes in this release.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
