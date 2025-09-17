@@ -1,5 +1,3 @@
-# Todo data directory
-.todos/
 
 # Go binary
 kaj-tasklist
@@ -26,3 +24,6 @@ kaj
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local todos
+.todos/
