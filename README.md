@@ -36,6 +36,8 @@ sudo mv kaj /usr/local/bin/
 go install github.com/mdmmn378/kaj@latest
 ```
 
+> **Note**: Make sure you have Go 1.21+ installed for the `go install` command to work.
+
 ### Build Locally
 
 ```bash
