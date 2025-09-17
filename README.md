@@ -66,6 +66,9 @@ kaj toggle 1
 # Delete a todo
 kaj delete 1
 
+# Undo last deletion
+kaj undo
+
 # Initialize local project todos
 kaj init
 
@@ -92,6 +95,7 @@ kaj
 - `a`: Add new todo
 - `e`: Edit selected todo
 - `d`: Delete selected todo
+- `u`: Undo last deletion
 - `Ctrl+↑/J`: Move task up in list
 - `Ctrl+↓/K`: Move task down in list
 - `r`: Refresh list

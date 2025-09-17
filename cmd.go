@@ -277,12 +277,38 @@ var versionCmd = &cobra.Command{
 	},
 }
 
+var undoCmd = &cobra.Command{
+	Use:   "undo",
+	Short: "Undo the last deleted todo",
+	Run: func(cmd *cobra.Command, args []string) {
+		db, err := NewDatabase()
+		if err != nil {
+			fmt.Printf("Error opening database: %v\n", err)
+			os.Exit(1)
+		}
+		defer db.Close()
+
+		todo, err := db.UndoLastDelete()
+		if err != nil {
+			if err.Error() == "sql: no rows in result set" {
+				fmt.Println("No recently deleted todos to restore")
+			} else {
+				fmt.Printf("Error undoing delete: %v\n", err)
+			}
+			os.Exit(1)
+		}
+
+		fmt.Printf("Restored: %s\n", todo.Text)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(editCmd)
 	rootCmd.AddCommand(toggleCmd)
 	rootCmd.AddCommand(deleteCmd)
+	rootCmd.AddCommand(undoCmd)
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(versionCmd)

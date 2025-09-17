@@ -150,6 +150,25 @@ func (m model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.cursor = 0
 		}
 
+	case "u":
+		_, err := m.db.UndoLastDelete()
+		if err != nil {
+			if err.Error() == "sql: no rows in result set" {
+				m.err = fmt.Errorf("no recently deleted todos to restore")
+			} else {
+				m.err = err
+			}
+			return m, nil
+		}
+
+		todos, err := m.db.GetTodos()
+		if err != nil {
+			m.err = err
+			return m, nil
+		}
+		m.todos = todos
+		m.cursor = len(m.todos) - 1
+
 	case "ctrl+up", "K":
 		if len(m.todos) > 0 && m.cursor > 0 {
 			todo := m.todos[m.cursor]
@@ -327,7 +346,7 @@ func (m model) View() string {
 		}
 
 		s.WriteString("\n")
-		s.WriteString(helpStyle.Render("a: add • e: edit • d: delete • space/enter: toggle • Ctrl+↑/J: move up • Ctrl+↓/K: move down • r: refresh • q: quit"))
+		s.WriteString(helpStyle.Render("a: add • e: edit • d: delete • u: undo • space/enter: toggle • Ctrl+↑/J: move up • Ctrl+↓/K: move down • r: refresh • q: quit"))
 	}
 
 	return s.String()

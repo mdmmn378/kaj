@@ -158,7 +158,7 @@ func addToGitignore(dir string) error {
 }
 
 func (d *Database) createTables() error {
-	query := `
+	todosQuery := `
 	CREATE TABLE IF NOT EXISTS todos (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		text TEXT NOT NULL,
@@ -166,7 +166,22 @@ func (d *Database) createTables() error {
 		position INTEGER DEFAULT 0
 	);`
 
-	_, err := d.db.Exec(query)
+	deletedQuery := `
+	CREATE TABLE IF NOT EXISTS deleted_todos (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		original_id INTEGER NOT NULL,
+		text TEXT NOT NULL,
+		done BOOLEAN DEFAULT FALSE,
+		position INTEGER DEFAULT 0,
+		deleted_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);`
+
+	_, err := d.db.Exec(todosQuery)
+	if err != nil {
+		return err
+	}
+
+	_, err = d.db.Exec(deletedQuery)
 	return err
 }
 
@@ -215,9 +230,119 @@ func (d *Database) ToggleTodo(id int) error {
 }
 
 func (d *Database) DeleteTodo(id int) error {
-	query := `DELETE FROM todos WHERE id = ?`
-	_, err := d.db.Exec(query, id)
-	return err
+	todo, err := d.getTodoByID(id)
+	if err != nil {
+		return err
+	}
+
+	tx, err := d.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	insertQuery := `INSERT INTO deleted_todos (original_id, text, done, position) VALUES (?, ?, ?, ?)`
+	_, err = tx.Exec(insertQuery, todo.ID, todo.Text, todo.Done, todo.Position)
+	if err != nil {
+		return err
+	}
+
+	deleteQuery := `DELETE FROM todos WHERE id = ?`
+	_, err = tx.Exec(deleteQuery, id)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (d *Database) getTodoByID(id int) (*Todo, error) {
+	query := `SELECT id, text, done, position FROM todos WHERE id = ?`
+	row := d.db.QueryRow(query, id)
+
+	var todo Todo
+	err := row.Scan(&todo.ID, &todo.Text, &todo.Done, &todo.Position)
+	if err != nil {
+		return nil, err
+	}
+
+	return &todo, nil
+}
+
+func (d *Database) UndoLastDelete() (*Todo, error) {
+	query := `SELECT original_id, text, done, position FROM deleted_todos ORDER BY deleted_at DESC LIMIT 1`
+	row := d.db.QueryRow(query)
+
+	var originalID int
+	var text string
+	var done bool
+	var position int
+
+	err := row.Scan(&originalID, &text, &done, &position)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := d.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	maxPosition, err := d.getMaxPosition()
+	if err != nil {
+		return nil, err
+	}
+
+	insertQuery := `INSERT INTO todos (text, done, position) VALUES (?, ?, ?)`
+	result, err := tx.Exec(insertQuery, text, done, maxPosition+1)
+	if err != nil {
+		return nil, err
+	}
+
+	newID, err := result.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+
+	deleteQuery := `DELETE FROM deleted_todos WHERE id = (SELECT id FROM deleted_todos WHERE original_id = ? ORDER BY deleted_at DESC LIMIT 1)`
+	_, err = tx.Exec(deleteQuery, originalID)
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Todo{
+		ID:       int(newID),
+		Text:     text,
+		Done:     done,
+		Position: maxPosition + 1,
+	}, nil
+}
+
+func (d *Database) GetRecentlyDeleted(limit int) ([]Todo, error) {
+	query := `SELECT original_id, text, done, position FROM deleted_todos ORDER BY deleted_at DESC LIMIT ?`
+	rows, err := d.db.Query(query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var deletedTodos []Todo
+	for rows.Next() {
+		var todo Todo
+		err := rows.Scan(&todo.ID, &todo.Text, &todo.Done, &todo.Position)
+		if err != nil {
+			return nil, err
+		}
+		deletedTodos = append(deletedTodos, todo)
+	}
+
+	return deletedTodos, nil
 }
 
 func (d *Database) getMaxPosition() (int, error) {
