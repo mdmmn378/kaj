@@ -43,7 +43,24 @@ go install github.com/mdmmn378/kaj@latest
 ```bash
 git clone https://github.com/mdmmn378/kaj.git
 cd kaj
+
+# Build with version info from git tags
+make build
+
+# Or build manually with version info
+make version  # Show version info
+go build -ldflags="-X main.Version=$(git describe --tags --always)" -o kaj
+
+# Or simple build without version info
 go build -o kaj
+
+# Available Makefile targets:
+# make build     - Build with version info
+# make install   - Build and install to /usr/local/bin
+# make version   - Show version information
+# make release   - Build for all platforms
+# make clean     - Remove built binaries
+# make help      - Show help message
 ```
 
 ## Usage
