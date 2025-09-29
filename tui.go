@@ -28,13 +28,14 @@ var (
 )
 
 type model struct {
-	todos  []Todo
-	cursor int
-	db     *Database
-	err    error
-	mode   string // "list", "add", "edit"
-	input  string
-	editID int
+	todos       []Todo
+	cursor      int
+	db          *Database
+	err         error
+	mode        string // "list", "add", "edit"
+	input       string
+	inputCursor int
+	editID      int
 }
 
 func initialModel() model {
@@ -104,12 +105,14 @@ func (m model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "a":
 		m.mode = "add"
 		m.input = ""
+		m.inputCursor = 0
 
 	case "e":
 		if len(m.todos) > 0 {
 			m.mode = "edit"
 			m.editID = m.todos[m.cursor].ID
 			m.input = m.todos[m.cursor].Text
+			m.inputCursor = len(m.input)
 		}
 
 	case "d":
@@ -237,14 +240,37 @@ func (m model) updateAdd(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.mode = "list"
 		m.input = ""
 
+	case "left":
+		if m.inputCursor > 0 {
+			m.inputCursor--
+		}
+
+	case "right":
+		if m.inputCursor < len(m.input) {
+			m.inputCursor++
+		}
+
+	case "home", "ctrl+a":
+		m.inputCursor = 0
+
+	case "end", "ctrl+e":
+		m.inputCursor = len(m.input)
+
 	case "backspace":
-		if len(m.input) > 0 {
-			m.input = m.input[:len(m.input)-1]
+		if m.inputCursor > 0 {
+			m.input = m.input[:m.inputCursor-1] + m.input[m.inputCursor:]
+			m.inputCursor--
+		}
+
+	case "delete":
+		if m.inputCursor < len(m.input) {
+			m.input = m.input[:m.inputCursor] + m.input[m.inputCursor+1:]
 		}
 
 	default:
 		if len(msg.String()) == 1 {
-			m.input += msg.String()
+			m.input = m.input[:m.inputCursor] + msg.String() + m.input[m.inputCursor:]
+			m.inputCursor++
 		}
 	}
 
@@ -278,14 +304,37 @@ func (m model) updateEdit(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.mode = "list"
 		m.input = ""
 
+	case "left":
+		if m.inputCursor > 0 {
+			m.inputCursor--
+		}
+
+	case "right":
+		if m.inputCursor < len(m.input) {
+			m.inputCursor++
+		}
+
+	case "home", "ctrl+a":
+		m.inputCursor = 0
+
+	case "end", "ctrl+e":
+		m.inputCursor = len(m.input)
+
 	case "backspace":
-		if len(m.input) > 0 {
-			m.input = m.input[:len(m.input)-1]
+		if m.inputCursor > 0 {
+			m.input = m.input[:m.inputCursor-1] + m.input[m.inputCursor:]
+			m.inputCursor--
+		}
+
+	case "delete":
+		if m.inputCursor < len(m.input) {
+			m.input = m.input[:m.inputCursor] + m.input[m.inputCursor+1:]
 		}
 
 	default:
 		if len(msg.String()) == 1 {
-			m.input += msg.String()
+			m.input = m.input[:m.inputCursor] + msg.String() + m.input[m.inputCursor:]
+			m.inputCursor++
 		}
 	}
 
@@ -305,15 +354,17 @@ func (m model) View() string {
 	switch m.mode {
 	case "add":
 		s.WriteString("Add new todo:\n")
-		s.WriteString(fmt.Sprintf("> %s", m.input))
+		inputWithCursor := m.input[:m.inputCursor] + "│" + m.input[m.inputCursor:]
+		s.WriteString(fmt.Sprintf("> %s", inputWithCursor))
 		s.WriteString("\n\n")
-		s.WriteString(helpStyle.Render("Enter to save • Esc to cancel"))
+		s.WriteString(helpStyle.Render("Enter to save • Esc to cancel • ←/→ to move cursor"))
 
 	case "edit":
 		s.WriteString("Edit todo:\n")
-		s.WriteString(fmt.Sprintf("> %s", m.input))
+		inputWithCursor := m.input[:m.inputCursor] + "│" + m.input[m.inputCursor:]
+		s.WriteString(fmt.Sprintf("> %s", inputWithCursor))
 		s.WriteString("\n\n")
-		s.WriteString(helpStyle.Render("Enter to save • Esc to cancel"))
+		s.WriteString(helpStyle.Render("Enter to save • Esc to cancel • ←/→ to move cursor"))
 
 	default: // list mode
 		if len(m.todos) == 0 {
