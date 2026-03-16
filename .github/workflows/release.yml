@@ -52,9 +52,13 @@ jobs:
           # Build for macOS ARM64 (Apple Silicon)
           GOOS=darwin GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o kaj-darwin-arm64
 
+          # Build for macOS AMD64 (Intel)
+          GOOS=darwin GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o kaj-darwin-amd64
+
           # Create checksums
           sha256sum kaj-linux-amd64 > kaj-linux-amd64.sha256
           sha256sum kaj-darwin-arm64 > kaj-darwin-arm64.sha256
+          sha256sum kaj-darwin-amd64 > kaj-darwin-amd64.sha256
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -66,6 +70,8 @@ jobs:
             kaj-linux-amd64.sha256
             kaj-darwin-arm64
             kaj-darwin-arm64.sha256
+            kaj-darwin-amd64
+            kaj-darwin-amd64.sha256
           body: |
             ## Release ${{ steps.version.outputs.VERSION }}
 
@@ -73,6 +79,7 @@ jobs:
 
             - **Linux (AMD64)**: `kaj-linux-amd64`
             - **macOS (ARM64/Apple Silicon)**: `kaj-darwin-arm64`
+            - **macOS (AMD64/Intel)**: `kaj-darwin-amd64`
 
             ### Installation
 
@@ -86,6 +93,10 @@ jobs:
             # macOS (Apple Silicon)
             chmod +x kaj-darwin-arm64
             sudo mv kaj-darwin-arm64 /usr/local/bin/kaj
+
+            # macOS (Intel)
+            chmod +x kaj-darwin-amd64
+            sudo mv kaj-darwin-amd64 /usr/local/bin/kaj
             ```
 
             Or install directly with Go:

@@ -28,14 +28,16 @@ var (
 )
 
 type model struct {
-	todos       []Todo
-	cursor      int
-	db          *Database
-	err         error
-	mode        string // "list", "add", "edit"
-	input       string
-	inputCursor int
-	editID      int
+	todos        []Todo
+	cursor       int
+	db           *Database
+	err          error
+	mode         string // "list", "add", "edit"
+	input        string
+	inputCursor  int
+	editID       int
+	windowHeight int
+	offset       int // scroll offset for the list viewport
 }
 
 func initialModel() model {
@@ -58,11 +60,15 @@ func initialModel() model {
 }
 
 func (m model) Init() tea.Cmd {
-	return nil
+	return tea.WindowSize()
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.windowHeight = msg.Height
+		m.ensureCursorVisible()
+		return m, nil
 	case tea.KeyMsg:
 		switch m.mode {
 		case "list":
@@ -74,6 +80,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, nil
+}
+
+// visibleListItems returns how many list items can fit on screen.
+// Accounts for title (2 lines), help bar (2 lines), and scroll indicators (2 lines).
+func (m model) visibleListItems() int {
+	// title + blank = 2, blank + help = 2, up/down indicators = 2 => 6 chrome lines
+	available := m.windowHeight - 6
+	if available < 1 {
+		available = 1
+	}
+	return available
+}
+
+// ensureCursorVisible adjusts the scroll offset so the cursor is visible.
+func (m *model) ensureCursorVisible() {
+	visible := m.visibleListItems()
+	if m.cursor < m.offset {
+		m.offset = m.cursor
+	}
+	if m.cursor >= m.offset+visible {
+		m.offset = m.cursor - visible + 1
+	}
+	if m.offset < 0 {
+		m.offset = 0
+	}
 }
 
 func (m model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -209,6 +240,7 @@ func (m model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	m.ensureCursorVisible()
 	return m, nil
 }
 
@@ -370,7 +402,19 @@ func (m model) View() string {
 		if len(m.todos) == 0 {
 			s.WriteString("No todos yet. Press 'a' to add one!\n\n")
 		} else {
-			for i, todo := range m.todos {
+			visible := m.visibleListItems()
+			end := m.offset + visible
+			if end > len(m.todos) {
+				end = len(m.todos)
+			}
+
+			if m.offset > 0 {
+				s.WriteString(helpStyle.Render(fmt.Sprintf("  ↑ %d more", m.offset)))
+				s.WriteString("\n")
+			}
+
+			for i := m.offset; i < end; i++ {
+				todo := m.todos[i]
 				cursor := " "
 				if m.cursor == i {
 					cursor = ">"
@@ -394,10 +438,15 @@ func (m model) View() string {
 				s.WriteString(line)
 				s.WriteString("\n")
 			}
+
+			if end < len(m.todos) {
+				s.WriteString(helpStyle.Render(fmt.Sprintf("  ↓ %d more", len(m.todos)-end)))
+				s.WriteString("\n")
+			}
 		}
 
 		s.WriteString("\n")
-		s.WriteString(helpStyle.Render("a: add • e: edit • d: delete • u: undo • space/enter: toggle • Ctrl+↑/J: move up • Ctrl+↓/K: move down • r: refresh • q: quit"))
+		s.WriteString(helpStyle.Render("a: add • e: edit • d: delete • u: undo • space/enter: toggle • Ctrl+↑/K: move up • Ctrl+↓/J: move down • r: refresh • q: quit"))
 	}
 
 	return s.String()
