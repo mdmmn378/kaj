@@ -97,7 +97,7 @@ func InitLocalDatabase() error {
 // root .gitignore.
 func writeTodosGitignore(dir string) error {
 	path := filepath.Join(dir, ".gitignore")
-	return os.WriteFile(path, []byte("todos.db\n"), 0644)
+	return os.WriteFile(path, []byte("*\n"), 0644)
 }
 
 func (d *Database) createTables() error {
