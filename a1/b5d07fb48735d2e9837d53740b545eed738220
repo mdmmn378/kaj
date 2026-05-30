@@ -1,0 +1,19 @@
+database.go
+  s_bf0d355e6e4e84::t_197f66f9ed2465 97,100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "a1b5d07fb48735d2e9837d53740b545eed738220",
+  "prompts": {},
+  "sessions": {
+    "s_bf0d355e6e4e84": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2dc0b7af-6652-4a24-9665-a560d9ca4363",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Mamunur Rahamn Mamun <mdmmn378@gmail.com>"
+    }
+  }
+}
