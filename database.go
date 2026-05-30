@@ -1,12 +1,10 @@
 package main
 
 import (
-	"bufio"
 	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -86,75 +84,24 @@ func InitLocalDatabase() error {
 	}
 	defer db.Close()
 
-	err = addToGitignore(cwd)
+	err = writeTodosGitignore(localTodosDir)
 	if err != nil {
-		return fmt.Errorf("failed to update .gitignore: %v", err)
+		return fmt.Errorf("failed to create .todos/.gitignore: %v", err)
 	}
 
 	return nil
 }
 
-func addToGitignore(dir string) error {
-	gitignorePath := filepath.Join(dir, ".gitignore")
-
-	if _, err := os.Stat(gitignorePath); os.IsNotExist(err) {
-		file, err := os.Create(gitignorePath)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-
-		_, err = file.WriteString("# Local todos\n.todos/\n")
-		return err
+// writeTodosGitignore creates a self-contained .gitignore inside the .todos
+// directory so the local database is ignored without touching the repository's
+// root .gitignore. The `!.gitignore` line keeps this file itself trackable, so
+// teammates can opt to commit the ignore rule.
+func writeTodosGitignore(dir string) error {
+	path := filepath.Join(dir, ".gitignore")
+	if _, err := os.Stat(path); err == nil {
+		return nil
 	}
-
-	file, err := os.Open(gitignorePath)
-	if err != nil {
-		return err
-	}
-
-	scanner := bufio.NewScanner(file)
-	hasTodosEntry := false
-
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == ".todos/" || line == ".todos" {
-			hasTodosEntry = true
-			break
-		}
-	}
-	file.Close()
-
-	if err := scanner.Err(); err != nil {
-		return err
-	}
-
-	if !hasTodosEntry {
-		file, err := os.OpenFile(gitignorePath, os.O_APPEND|os.O_WRONLY, 0644)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-
-		content, err := os.ReadFile(gitignorePath)
-		if err != nil {
-			return err
-		}
-
-		needsNewline := len(content) > 0 && content[len(content)-1] != '\n'
-
-		if needsNewline {
-			_, err = file.WriteString("\n")
-			if err != nil {
-				return err
-			}
-		}
-
-		_, err = file.WriteString("\n# Local todos\n.todos/\n")
-		return err
-	}
-
-	return nil
+	return os.WriteFile(path, []byte("*\n!.gitignore\n"), 0644)
 }
 
 func (d *Database) createTables() error {

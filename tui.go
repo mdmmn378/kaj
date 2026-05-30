@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
+	osc52 "github.com/aymanbagabas/go-osc52/v2"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -37,6 +39,7 @@ type model struct {
 	inputCursor  int
 	editID       int
 	windowHeight int
+	windowWidth  int
 	offset       int // scroll offset for the list viewport
 }
 
@@ -67,6 +70,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.windowHeight = msg.Height
+		m.windowWidth = msg.Width
 		m.ensureCursorVisible()
 		return m, nil
 	case tea.KeyMsg:
@@ -203,6 +207,12 @@ func (m model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.todos = todos
 		m.cursor = len(m.todos) - 1
 
+	case "y":
+		if len(m.todos) > 0 {
+			text := m.todos[m.cursor].Text
+			_, _ = os.Stderr.WriteString(osc52.New(text).String())
+		}
+
 	case "ctrl+up", "K":
 		if len(m.todos) > 0 && m.cursor > 0 {
 			todo := m.todos[m.cursor]
@@ -300,9 +310,9 @@ func (m model) updateAdd(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	default:
-		if len(msg.String()) == 1 {
-			m.input = m.input[:m.inputCursor] + msg.String() + m.input[m.inputCursor:]
-			m.inputCursor++
+		if s := insertableRunes(msg); s != "" {
+			m.input = m.input[:m.inputCursor] + s + m.input[m.inputCursor:]
+			m.inputCursor += len(s)
 		}
 	}
 
@@ -364,9 +374,9 @@ func (m model) updateEdit(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	default:
-		if len(msg.String()) == 1 {
-			m.input = m.input[:m.inputCursor] + msg.String() + m.input[m.inputCursor:]
-			m.inputCursor++
+		if s := insertableRunes(msg); s != "" {
+			m.input = m.input[:m.inputCursor] + s + m.input[m.inputCursor:]
+			m.inputCursor += len(s)
 		}
 	}
 
@@ -387,14 +397,14 @@ func (m model) View() string {
 	case "add":
 		s.WriteString("Add new todo:\n")
 		inputWithCursor := m.input[:m.inputCursor] + "│" + m.input[m.inputCursor:]
-		s.WriteString(fmt.Sprintf("> %s", inputWithCursor))
+		s.WriteString(m.renderInputPrompt(inputWithCursor))
 		s.WriteString("\n\n")
 		s.WriteString(helpStyle.Render("Enter to save • Esc to cancel • ←/→ to move cursor"))
 
 	case "edit":
 		s.WriteString("Edit todo:\n")
 		inputWithCursor := m.input[:m.inputCursor] + "│" + m.input[m.inputCursor:]
-		s.WriteString(fmt.Sprintf("> %s", inputWithCursor))
+		s.WriteString(m.renderInputPrompt(inputWithCursor))
 		s.WriteString("\n\n")
 		s.WriteString(helpStyle.Render("Enter to save • Esc to cancel • ←/→ to move cursor"))
 
@@ -425,12 +435,29 @@ func (m model) View() string {
 					checked = "✓"
 				}
 
-				text := todo.Text
-				if todo.Done {
-					text = doneStyle.Render(text)
+				prefix := fmt.Sprintf("%s [%s] ", cursor, checked)
+				// Prefix is always 6 display cells: cursor(1) + " ["(2) + checked(1) + "] "(2).
+				const prefixCells = 6
+				indent := strings.Repeat(" ", prefixCells)
+
+				wrappedLines := wrapText(todo.Text, m.windowWidth-prefixCells)
+
+				var block strings.Builder
+				for j, wl := range wrappedLines {
+					if todo.Done {
+						wl = doneStyle.Render(wl)
+					}
+					if j == 0 {
+						block.WriteString(prefix + wl)
+					} else {
+						block.WriteString(indent + wl)
+					}
+					if j < len(wrappedLines)-1 {
+						block.WriteString("\n")
+					}
 				}
 
-				line := fmt.Sprintf("%s [%s] %s", cursor, checked, text)
+				line := block.String()
 				if m.cursor == i {
 					line = selectedStyle.Render(line)
 				}
@@ -446,10 +473,66 @@ func (m model) View() string {
 		}
 
 		s.WriteString("\n")
-		s.WriteString(helpStyle.Render("a: add • e: edit • d: delete • u: undo • space/enter: toggle • Ctrl+↑/K: move up • Ctrl+↓/J: move down • r: refresh • q: quit"))
+		helpText := "a: add • e: edit • d: delete • u: undo • y: yank • space/enter: toggle • Ctrl+↑/K: move up • Ctrl+↓/J: move down • r: refresh • q: quit"
+		if m.windowWidth > 0 {
+			s.WriteString(helpStyle.Render(lipgloss.NewStyle().Width(m.windowWidth).Render(helpText)))
+		} else {
+			s.WriteString(helpStyle.Render(helpText))
+		}
 	}
 
 	return s.String()
+}
+
+// renderInputPrompt formats the "> ..." input line, wrapping long input
+// (typed or pasted) so it doesn't overflow the terminal width. Continuation
+// lines are indented under the prompt.
+func (m model) renderInputPrompt(input string) string {
+	const promptCells = 2 // "> "
+	if m.windowWidth <= promptCells {
+		return "> " + input
+	}
+	lines := wrapText(input, m.windowWidth-promptCells)
+	indent := strings.Repeat(" ", promptCells)
+	var b strings.Builder
+	for i, l := range lines {
+		if i == 0 {
+			b.WriteString("> ")
+		} else {
+			b.WriteString("\n")
+			b.WriteString(indent)
+		}
+		b.WriteString(l)
+	}
+	return b.String()
+}
+
+// wrapText wraps text to fit within maxCellWidth display cells, preferring
+// word boundaries and hard-breaking only when a token is longer than the
+// width. It delegates to lipgloss/cellbuf so multi-byte runes and wide
+// characters (CJK, emoji) are measured in cells, not bytes.
+func wrapText(text string, maxCellWidth int) []string {
+	if maxCellWidth < 1 || lipgloss.Width(text) <= maxCellWidth {
+		return []string{text}
+	}
+	wrapped := lipgloss.NewStyle().Width(maxCellWidth).Render(text)
+	lines := strings.Split(wrapped, "\n")
+	for i, l := range lines {
+		lines[i] = strings.TrimRight(l, " ")
+	}
+	return lines
+}
+
+// insertableRunes returns the runes from a KeyMsg that should be inserted
+// verbatim into a text field. It accepts both single typed characters and
+// pasted multi-rune chunks (bracketed paste arrives as one KeyMsg with many
+// runes), and rejects control keys.
+func insertableRunes(msg tea.KeyMsg) string {
+	switch msg.Type {
+	case tea.KeyRunes, tea.KeySpace:
+		return string(msg.Runes)
+	}
+	return ""
 }
 
 func runTUI() {
