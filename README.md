@@ -113,6 +113,7 @@ kaj
 - `e`: Edit selected todo
 - `d`: Delete selected todo
 - `u`: Undo last deletion
+- `y`: Yank (copy) selected todo to system clipboard (via OSC52)
 - `Ctrl+↑/J`: Move task up in list
 - `Ctrl+↓/K`: Move task down in list
 - `r`: Refresh list
