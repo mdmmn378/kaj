@@ -1,0 +1,14 @@
+database.go
+  h_2a5ec583c90505 100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "240708ba3afc02b8dc8ee0e5c0452b4cb7bb0dc7",
+  "prompts": {},
+  "humans": {
+    "h_2a5ec583c90505": {
+      "author": "Mamunur Rahamn Mamun <mdmmn378@gmail.com>"
+    }
+  }
+}
