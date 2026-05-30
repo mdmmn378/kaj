@@ -94,14 +94,10 @@ func InitLocalDatabase() error {
 
 // writeTodosGitignore creates a self-contained .gitignore inside the .todos
 // directory so the local database is ignored without touching the repository's
-// root .gitignore. The `!.gitignore` line keeps this file itself trackable, so
-// teammates can opt to commit the ignore rule.
+// root .gitignore.
 func writeTodosGitignore(dir string) error {
 	path := filepath.Join(dir, ".gitignore")
-	if _, err := os.Stat(path); err == nil {
-		return nil
-	}
-	return os.WriteFile(path, []byte("*\n!.gitignore\n"), 0644)
+	return os.WriteFile(path, []byte("todos.db\n"), 0644)
 }
 
 func (d *Database) createTables() error {
