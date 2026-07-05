@@ -1,0 +1,33 @@
+tui.go
+  s_2dd1d379c2bdba::t_10ed0716d2555f 37,43-44
+  s_2dd1d379c2bdba::t_4568cf460ec9bc 118-129
+  s_2dd1d379c2bdba::t_6601962f18fa02 401-433
+  s_2dd1d379c2bdba::t_142bf6f1d944f8 459-483
+  s_2dd1d379c2bdba::t_4159bd834eb262 85-86
+  s_2dd1d379c2bdba::t_7a5a111291d310 549
+  s_2dd1d379c2bdba::t_ca1c04e2df56b4 611-629
+README.md
+  s_2dd1d379c2bdba::t_959ec281bf2793 117
+database_test.go
+  s_2dd1d379c2bdba::t_0601f741459760 1-97
+tui_test.go
+  s_2dd1d379c2bdba::t_e192295fe98a12 1-89
+database.go
+  s_2dd1d379c2bdba::t_7ab27222de07ed 142-169
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "eeab449b27b1778b69f6f6974431b2a9f108a5a0",
+  "prompts": {},
+  "sessions": {
+    "s_2dd1d379c2bdba": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "16c457da-b79c-44f9-a73c-ea11454de6b6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Mamunur Rahamn Mamun <mdmmn378@gmail.com>"
+    }
+  }
+}
