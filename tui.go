@@ -34,13 +34,14 @@ type model struct {
 	cursor       int
 	db           *Database
 	err          error
-	mode         string // "list", "add", "edit"
+	mode         string // "list", "add", "edit", "import"
 	input        string
 	inputCursor  int
 	editID       int
 	windowHeight int
 	windowWidth  int
-	offset       int // scroll offset for the list viewport
+	offset       int      // scroll offset for the list viewport
+	importLines  []string // pending tasks awaiting import confirmation
 }
 
 func initialModel() model {
@@ -81,6 +82,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateAdd(msg)
 		case "edit":
 			return m.updateEdit(msg)
+		case "import":
+			return m.updateImport(msg)
 		}
 	}
 	return m, nil
@@ -112,6 +115,18 @@ func (m *model) ensureCursorVisible() {
 }
 
 func (m model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// A bracketed paste (e.g. Ctrl+Shift+V in the terminal) arrives as a single
+	// KeyMsg with Paste set. Parse it into tasks and ask for confirmation
+	// before importing.
+	if msg.Paste {
+		lines := parseImportLines(string(msg.Runes), 100)
+		if len(lines) > 0 {
+			m.importLines = lines
+			m.mode = "import"
+		}
+		return m, nil
+	}
+
 	switch msg.String() {
 	case "ctrl+c", "q":
 		return m, tea.Quit
@@ -383,6 +398,39 @@ func (m model) updateEdit(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m model) updateImport(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c":
+		return m, tea.Quit
+
+	case "y", "Y", "enter":
+		if len(m.importLines) > 0 {
+			err := m.db.AddTodos(m.importLines)
+			if err != nil {
+				m.err = err
+				return m, nil
+			}
+
+			todos, err := m.db.GetTodos()
+			if err != nil {
+				m.err = err
+				return m, nil
+			}
+			m.todos = todos
+			m.cursor = len(m.todos) - 1
+		}
+		m.importLines = nil
+		m.mode = "list"
+		m.ensureCursorVisible()
+
+	case "n", "N", "esc":
+		m.importLines = nil
+		m.mode = "list"
+	}
+
+	return m, nil
+}
+
 func (m model) View() string {
 	if m.err != nil {
 		return fmt.Sprintf("Error: %v\n\nPress q to quit.", m.err)
@@ -407,6 +455,31 @@ func (m model) View() string {
 		s.WriteString(m.renderInputPrompt(inputWithCursor))
 		s.WriteString("\n\n")
 		s.WriteString(helpStyle.Render("Enter to save • Esc to cancel • ←/→ to move cursor"))
+
+	case "import":
+		n := len(m.importLines)
+		noun := "task"
+		if n != 1 {
+			noun = "tasks"
+		}
+		s.WriteString(fmt.Sprintf("Import %d %s from clipboard?\n\n", n, noun))
+
+		const previewCount = 5
+		for i := 0; i < n && i < previewCount; i++ {
+			line := m.importLines[i]
+			if m.windowWidth > 4 {
+				if wrapped := wrapText(line, m.windowWidth-4); len(wrapped) > 0 {
+					line = wrapped[0]
+				}
+			}
+			s.WriteString(fmt.Sprintf("  • %s\n", line))
+		}
+		if n > previewCount {
+			s.WriteString(helpStyle.Render(fmt.Sprintf("  … and %d more", n-previewCount)))
+			s.WriteString("\n")
+		}
+		s.WriteString("\n")
+		s.WriteString(helpStyle.Render("y: import • n/esc: cancel"))
 
 	default: // list mode
 		if len(m.todos) == 0 {
@@ -473,7 +546,7 @@ func (m model) View() string {
 		}
 
 		s.WriteString("\n")
-		helpText := "a: add • e: edit • d: delete • u: undo • y: yank • space/enter: toggle • Ctrl+↑/K: move up • Ctrl+↓/J: move down • r: refresh • q: quit"
+		helpText := "a: add • e: edit • d: delete • u: undo • y: yank • Ctrl+Shift+V: import • space/enter: toggle • Ctrl+↑/K: move up • Ctrl+↓/J: move down • r: refresh • q: quit"
 		if m.windowWidth > 0 {
 			s.WriteString(helpStyle.Render(lipgloss.NewStyle().Width(m.windowWidth).Render(helpText)))
 		} else {
@@ -533,6 +606,25 @@ func insertableRunes(msg tea.KeyMsg) string {
 		return string(msg.Runes)
 	}
 	return ""
+}
+
+// parseImportLines turns pasted clipboard text into a list of task strings:
+// it splits on newlines, trims surrounding whitespace (including CR from
+// CRLF line endings), drops blank lines, and caps the result to the first
+// max entries.
+func parseImportLines(s string, max int) []string {
+	var lines []string
+	for _, raw := range strings.Split(s, "\n") {
+		line := strings.TrimSpace(raw)
+		if line == "" {
+			continue
+		}
+		lines = append(lines, line)
+		if len(lines) >= max {
+			break
+		}
+	}
+	return lines
 }
 
 func runTUI() {

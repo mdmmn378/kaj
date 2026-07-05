@@ -114,6 +114,7 @@ kaj
 - `d`: Delete selected todo
 - `u`: Undo last deletion
 - `y`: Yank (copy) selected todo to system clipboard (via OSC52)
+- `Ctrl+Shift+V`: Import newline-separated tasks from the clipboard (up to 100), with a confirmation prompt
 - `Ctrl+↑/J`: Move task up in list
 - `Ctrl+↓/K`: Move task down in list
 - `r`: Refresh list

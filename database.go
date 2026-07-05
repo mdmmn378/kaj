@@ -139,6 +139,34 @@ func (d *Database) AddTodo(text string) error {
 	return err
 }
 
+// AddTodos inserts multiple todos in a single transaction, appending them to
+// the end of the list with contiguous positions. An empty slice is a no-op.
+func (d *Database) AddTodos(texts []string) error {
+	if len(texts) == 0 {
+		return nil
+	}
+
+	maxPosition, err := d.getMaxPosition()
+	if err != nil {
+		return err
+	}
+
+	tx, err := d.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	query := `INSERT INTO todos (text, done, position) VALUES (?, FALSE, ?)`
+	for i, text := range texts {
+		if _, err := tx.Exec(query, text, maxPosition+1+i); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
 func (d *Database) GetTodos() ([]Todo, error) {
 	query := `SELECT id, text, done, position FROM todos ORDER BY position ASC`
 	rows, err := d.db.Query(query)
